@@ -6,6 +6,7 @@ public class PlayerMovement : MonoBehaviour
 {
 
     [SerializeField] private CharacterController controller;
+    [SerializeField] private GameInput gameInput;
 
     [SerializeField] private float speed = 12f;
     [SerializeField] private float gravity = -9.81f;
@@ -15,28 +16,31 @@ public class PlayerMovement : MonoBehaviour
 
     bool isGrounded;
 
-    void Update()
+    private void Start()
     {
-        isGrounded = controller.isGrounded;
+        gameInput.OnJumpAction += GameInput_OnJumpAction;
+    }
 
+    private void GameInput_OnJumpAction(object sender, System.EventArgs e) {
+        velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+    }
+
+    private void Update()
+    {
+        Vector2 inputVector = gameInput.GetMovementVectorNormalized();
+        isGrounded = controller.isGrounded;
+        Vector3 move = transform.right * inputVector.x + transform.forward * inputVector.y;
+        controller.Move(move * speed * Time.deltaTime);
+        HandleGravity();
+        controller.Move(velocity * Time.deltaTime);
+    }
+
+    private void HandleGravity() {
         if (isGrounded && velocity.y < 0)
         {
             velocity.y = -2f;
         }
 
-        float x = Input.GetAxis("Horizontal");
-        float z = Input.GetAxis("Vertical");
-
-        Vector3 move = transform.right * x + transform.forward * z;
-
-        controller.Move(move * speed * Time.deltaTime);
-
-        if (Input.GetButtonDown("Jump") && isGrounded)
-        {
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-        }
         velocity.y += gravity * Time.deltaTime;
-
-        controller.Move(velocity * Time.deltaTime);
     }
 }
