@@ -4,7 +4,9 @@ using UnityEngine;
 public class GameInput : MonoBehaviour
 {
 
+
     public event EventHandler OnJumpAction;
+    public event Action<bool> OnCrouchAction;
     private PlayerInputActions playerInputActions;
     private void Awake()
     {
@@ -12,6 +14,8 @@ public class GameInput : MonoBehaviour
         playerInputActions.Player.Enable();
 
         playerInputActions.Player.Jump.performed += Jump_performed;
+        playerInputActions.Player.Crouch.started += ctx => OnCrouchAction?.Invoke(true);
+        playerInputActions.Player.Crouch.canceled += ctx => OnCrouchAction?.Invoke(false);
     }
 
     private void Jump_performed(UnityEngine.InputSystem.InputAction.CallbackContext obj) {
