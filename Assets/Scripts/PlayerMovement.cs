@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
@@ -13,18 +14,13 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float crouchSpeed = 6f;
     [SerializeField] private float crouchHeight = 1.0f;
     [SerializeField] private float gravity = -9.81f;
+    [SerializeField] private float crouchTransitionSpeed;
 
     private float standingHeight;
+    private float currentHeight;
+    private float targetHeight;
     private Vector3 standingCameraPosition;
     private float speed;
-    private MovementState movementState;
-    private MovementState previousMovementState;
-    private enum MovementState {
-        Idle,
-        Walking,
-        Crouching,
-        Air,
-    }
 
     private float jumpHeight = 3f;
     Vector3 velocity;
@@ -33,14 +29,16 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
-        SetMovementState(MovementState.Idle);
         standingHeight = controller.height;
         standingCameraPosition = cameraTransform.localPosition;
+        speed = walkSpeed;
+        currentHeight = standingHeight;
     }
 
     private void Start()
     {
         gameInput.OnJumpAction += GameInput_OnJumpAction;
+        gameInput.OnCrouchAction += GameInput_OnCrouchAction;
     }
 
     private void GameInput_OnJumpAction(object sender, System.EventArgs e) {
@@ -49,20 +47,19 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private void GameInput_OnCrouchStarted(object sender, System.EventArgs e) {
-        SetMovementState(MovementState.Crouching);
-    }
-
-    private void GameInput_OnCrouchEnded(object sender, System.EventArgs e) {
-        SetMovementState(MovementState.Idle);
+    private void GameInput_OnCrouchAction(bool isCrouching) {
+        HandleCrouch(isCrouching);
     }
 
     private void Update()
     {
-        Vector2 inputVector = gameInput.GetMovementVectorNormalized();
-        isGrounded = controller.isGrounded;
+        currentHeight = Mathf.Lerp(currentHeight, targetHeight, crouchTransitionSpeed * Time.deltaTime);
 
         
+        controller.height = targetHeight;
+
+        Vector2 inputVector = gameInput.GetMovementVectorNormalized();
+        isGrounded = controller.isGrounded;
 
         Vector3 move = transform.right * inputVector.x + transform.forward * inputVector.y;
         controller.Move(move * speed * Time.deltaTime);
@@ -79,32 +76,6 @@ public class PlayerMovement : MonoBehaviour
         velocity.y += gravity * Time.deltaTime;
     }
 
-    private void SetMovementState(MovementState newMovementState) {
-        previousMovementState = movementState;
-        movementState = newMovementState;
-
-        switch (movementState) {
-            case MovementState.Idle:
-                speed = walkSpeed;
-                HandleCrouch(false);
-                break;
-
-            case MovementState.Walking:
-                speed = walkSpeed;
-                HandleCrouch(false);
-                break;
-
-            case MovementState.Crouching:
-                speed = crouchSpeed;
-                HandleCrouch(true);
-            break;
-                
-            case MovementState.Air:
-                speed = walkSpeed;
-                HandleCrouch(false);
-                break;
-        }
-    }
 
         private void HandleCrouch(bool isCrouching)
         {
@@ -112,11 +83,11 @@ public class PlayerMovement : MonoBehaviour
 
             if (isCrouching) {
                 speed = crouchSpeed;
-                controller.height = crouchHeight;
-                cameraPos.y = cameraTransform.localPosition.y * 0.5f;
+                targetHeight = crouchHeight;
+                cameraPos.y = cameraTransform.localPosition.y - ((standingHeight - targetHeight) * 0.5f);
             } else {
                 speed = walkSpeed;
-                controller.height = standingHeight;    
+                targetHeight = standingHeight;
             }
             cameraTransform.localPosition = cameraPos;
         }

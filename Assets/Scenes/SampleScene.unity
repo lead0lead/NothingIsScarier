@@ -818,8 +818,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   controller: {fileID: 1229048834}
   gameInput: {fileID: 1743205502}
+  cameraTransform: {fileID: 330585546}
   walkSpeed: 12
-  standingHeight: 0
   crouchSpeed: 6
   crouchHeight: 1
   gravity: -19.62
