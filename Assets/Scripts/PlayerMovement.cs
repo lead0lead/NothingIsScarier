@@ -11,15 +11,8 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private GameInput gameInput;
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private float walkSpeed = 12f;
-    [SerializeField] private float crouchSpeed = 6f;
-    [SerializeField] private float crouchHeight = 1.0f;
     [SerializeField] private float gravity = -9.81f;
-    [SerializeField] private float crouchTransitionSpeed;
 
-    private float standingHeight;
-    private float currentHeight;
-    private float targetHeight;
-    private Vector3 standingCameraPosition;
     private float speed;
 
     private float jumpHeight = 3f;
@@ -29,16 +22,12 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
-        standingHeight = controller.height;
-        standingCameraPosition = cameraTransform.localPosition;
         speed = walkSpeed;
-        currentHeight = standingHeight;
     }
 
     private void Start()
     {
         gameInput.OnJumpAction += GameInput_OnJumpAction;
-        gameInput.OnCrouchAction += GameInput_OnCrouchAction;
     }
 
     private void GameInput_OnJumpAction(object sender, System.EventArgs e) {
@@ -47,17 +36,8 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private void GameInput_OnCrouchAction(bool isCrouching) {
-        HandleCrouch(isCrouching);
-    }
-
     private void Update()
     {
-        currentHeight = Mathf.Lerp(currentHeight, targetHeight, crouchTransitionSpeed * Time.deltaTime);
-
-        
-        controller.height = targetHeight;
-
         Vector2 inputVector = gameInput.GetMovementVectorNormalized();
         isGrounded = controller.isGrounded;
 
@@ -76,20 +56,5 @@ public class PlayerMovement : MonoBehaviour
         velocity.y += gravity * Time.deltaTime;
     }
 
-
-        private void HandleCrouch(bool isCrouching)
-        {
-            Vector3 cameraPos = standingCameraPosition;
-
-            if (isCrouching) {
-                speed = crouchSpeed;
-                targetHeight = crouchHeight;
-                cameraPos.y = cameraTransform.localPosition.y - ((standingHeight - targetHeight) * 0.5f);
-            } else {
-                speed = walkSpeed;
-                targetHeight = standingHeight;
-            }
-            cameraTransform.localPosition = cameraPos;
-        }
 }
 
