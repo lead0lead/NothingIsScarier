@@ -1,32 +1,47 @@
 using System;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.InputSystem;
 
-public class GameInput : MonoBehaviour
+public class GameInput : MonoBehaviour, PlayerInputActions.IPlayerActions
 {
 
+    public event UnityAction<Vector2> Move = delegate { };
+    public event UnityAction<Vector2> Look = delegate { };
+    public event UnityAction Jump = delegate { };
+    public event UnityAction Crouch = delegate { };
+    private PlayerInputActions inputActions;
+    public Vector3 Direction => (Vector3)inputActions.Player.Move.ReadValue<Vector2>();
+    public Vector2 LookVector => (Vector2)inputActions.Player.Look.ReadValue<Vector2>();
 
-    public event EventHandler OnJumpAction;
-    public event Action<bool> OnCrouchAction;
-    private PlayerInputActions playerInputActions;
-    private void Awake()
+    private void OnEnable()
     {
-        playerInputActions = new PlayerInputActions();
-        playerInputActions.Player.Enable();
-
-        playerInputActions.Player.Jump.performed += Jump_performed;
-        playerInputActions.Player.Crouch.started += ctx => OnCrouchAction?.Invoke(true);
-        playerInputActions.Player.Crouch.canceled += ctx => OnCrouchAction?.Invoke(false);
+        if (inputActions == null) {
+            inputActions = new PlayerInputActions();
+            inputActions.Player.SetCallbacks(instance: this);
+        }
+        inputActions.Enable();
     }
 
-    private void Jump_performed(UnityEngine.InputSystem.InputAction.CallbackContext obj) {
-        OnJumpAction?.Invoke(this, EventArgs.Empty);
+    public void OnMove(InputAction.CallbackContext context)
+    {
+        Move.Invoke(arg0: context.ReadValue<Vector2>());
     }
 
-    public Vector2 GetMovementVectorNormalized() {
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        Jump.Invoke();
+    }
 
-        Vector2 inputVector = playerInputActions.Player.Move.ReadValue<Vector2>();
-        inputVector = inputVector.normalized;
+    public void OnCrouch(InputAction.CallbackContext context)
+    {
+        
+        Crouch.Invoke();
+    }
 
-        return inputVector;
+    public void OnLook(InputAction.CallbackContext context)
+    {
+        Look.Invoke(context.ReadValue<Vector2>());
     }
 }
