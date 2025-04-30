@@ -9,7 +9,7 @@ public class GameInput : MonoBehaviour, PlayerInputActions.IPlayerActions
 
     public event UnityAction<Vector2> Move = delegate { };
     public event UnityAction<Vector2> Look = delegate { };
-    public event UnityAction Jump = delegate { };
+    public event UnityAction<bool> Jump = delegate {};
     public event UnityAction Crouch = delegate { };
     private PlayerInputActions inputActions;
     public Vector3 Direction => (Vector3)inputActions.Player.Move.ReadValue<Vector2>();
@@ -31,7 +31,16 @@ public class GameInput : MonoBehaviour, PlayerInputActions.IPlayerActions
 
     public void OnJump(InputAction.CallbackContext context)
     {
-        Jump.Invoke();
+        switch (context.phase) {
+            case InputActionPhase.Started:
+                // Debug.Log("jump input start registered");
+                Jump.Invoke(arg0:true);
+                break;
+            case InputActionPhase.Canceled:
+                // Debug.Log("jump input cancel registered");
+                Jump.Invoke(arg0:false);
+                break;
+        }
     }
 
     public void OnCrouch(InputAction.CallbackContext context)
