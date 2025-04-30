@@ -45,8 +45,6 @@ public class PlayerController : MonoBehaviour
     private void Awake() {
         moveSpeed = walkSpeed;
         
-        rb.freezeRotation = true;
-
         // Setup Timers
         jumpTimer = new CountdownTimer(jumpDuration);
         jumpCooldownTimer = new CountdownTimer(jumpCooldown);
@@ -59,16 +57,17 @@ public class PlayerController : MonoBehaviour
         stateMachine = new StateMachine();
 
         // Declare states
-        var locomotionState = new LocomotionState(player:this, animator);
-        var jumpState = new JumpState(player:this, animator);
+        var locomotionState = new LocomotionState(this, animator);
+        var jumpState = new JumpState(this, animator);
 
         // Define transitions
         At(locomotionState, jumpState, new FuncPredicate(() => jumpTimer.IsRunning));
         At(jumpState, locomotionState, new FuncPredicate(() => groundChecker.IsGrounded && !jumpTimer.IsRunning));
 
         // Set initial state
-        stateMachine.SetState(locomotionState);
+        stateMachine.SetState(jumpState);
 
+        rb.freezeRotation = true;
     }
 
     void At(IState from, IState to, IPredicate condition) => stateMachine.AddTransition(from, to, condition);
@@ -98,16 +97,21 @@ public class PlayerController : MonoBehaviour
     private void Update() {
         HandleTimers();
         movement = new Vector3(gameInput.Direction.x, 0f, gameInput.Direction.y);
+
+        stateMachine.Update();
     }
 
     void FixedUpdate() {
-        stateMachine.FixedUpdate();
+        //HandleJump();
+        // HandleMovement();
+       stateMachine.FixedUpdate(); 
     }
 
     public void HandleJump() {
         // if not jumping and grounded, keep jumping velocity at 0
         if (!jumpTimer.IsRunning && groundChecker.IsGrounded) {
             jumpVelocity = ZeroF;
+            jumpTimer.Stop();
             return;
         }
 

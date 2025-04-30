@@ -6,7 +6,7 @@ public class JumpState : BaseState {
     public override void OnEnter()
     {
         Debug.Log("JumpState.OnEnter");
-        animator.CrossFade(JumpHash, crossFadeDuration);
+        // animator.CrossFade(JumpHash, crossFadeDuration);
     }
 
     public override void FixedUpdate()
