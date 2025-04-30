@@ -25,7 +25,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float jumpForce = 10f;
     [SerializeField] float jumpCooldown = 0f;
     [SerializeField] float jumpDuration = 0.5f;
-    [SerializeField] float jumpMaxHeight = 2f;
     [SerializeField] float gravityMultiplier = 3f;
 
     private float moveSpeed;
@@ -46,6 +45,8 @@ public class PlayerController : MonoBehaviour
     private void Awake() {
         moveSpeed = walkSpeed;
         
+        rb.freezeRotation = true;
+
         // Setup Timers
         jumpTimer = new CountdownTimer(jumpDuration);
         jumpCooldownTimer = new CountdownTimer(jumpCooldown);
@@ -58,8 +59,8 @@ public class PlayerController : MonoBehaviour
         stateMachine = new StateMachine();
 
         // Declare states
-        var locomotionState = new LocomotionState(this, animator);
-        var jumpState = new JumpState(this, animator);
+        var locomotionState = new LocomotionState(player:this, animator);
+        var jumpState = new JumpState(player:this, animator);
 
         // Define transitions
         At(locomotionState, jumpState, new FuncPredicate(() => jumpTimer.IsRunning));
@@ -68,7 +69,6 @@ public class PlayerController : MonoBehaviour
         // Set initial state
         stateMachine.SetState(locomotionState);
 
-        rb.freezeRotation = true;
     }
 
     void At(IState from, IState to, IPredicate condition) => stateMachine.AddTransition(from, to, condition);
@@ -101,21 +101,18 @@ public class PlayerController : MonoBehaviour
     }
 
     void FixedUpdate() {
-        //HandleJump();
-        // HandleMovement();
-        
+        stateMachine.FixedUpdate();
     }
 
     public void HandleJump() {
         // if not jumping and grounded, keep jumping velocity at 0
         if (!jumpTimer.IsRunning && groundChecker.IsGrounded) {
             jumpVelocity = ZeroF;
-            jumpTimer.Stop();
             return;
         }
 
         // if jumping or falling calculate velocity
-        if (jumpTimer.IsRunning) {
+        if (!jumpTimer.IsRunning) {
             // Gravity takes over
             jumpVelocity += Physics.gravity.y * gravityMultiplier * Time.deltaTime;
         }

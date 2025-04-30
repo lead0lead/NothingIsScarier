@@ -5,6 +5,7 @@ public class LocomotionState : BaseState {
 
     public override void OnEnter()
     {
+        Debug.Log("LocomotionState.OnEnter");
         // animator.CrossFade(LocomotionHash, crossFadeDuration);
     }
 
