@@ -25,7 +25,7 @@ public abstract class BaseState : IState
 
     public virtual void OnExit()
     {
-        Debug.Log("BaseSate.OnExit");
+        // Debug.Log("BaseSate.OnExit");
     }
 
     public virtual void Update()

@@ -1,12 +1,13 @@
 using System;
 using UnityEngine;
 
-public class MouseLook : MonoBehaviour
+public class CameraHandler : MonoBehaviour
 {
     
     public float mouseSensitivity = 100f;
 
     [SerializeField] private Transform playerBody;
+    [SerializeField] public float crouchTransitionSpeed = 32f;
 
     private float xRotation = 0f;
 
@@ -25,5 +26,13 @@ public class MouseLook : MonoBehaviour
 
         transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         playerBody.Rotate(Vector3.up * mouseX);
+    }
+    
+
+    public void HandleCameraPosition(Vector3 newTargetPosition) {
+        if (transform.localPosition.y != newTargetPosition.y) {
+            var currentCameraTargetPositionY = Mathf.Lerp(transform.localPosition.y, newTargetPosition.y, crouchTransitionSpeed);
+            transform.localPosition = new Vector3(transform.localPosition.x, currentCameraTargetPositionY, transform.localPosition.z);
+        } 
     }
 }

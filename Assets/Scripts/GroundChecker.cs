@@ -3,8 +3,10 @@ using UnityEngine;
 public class GroundChecker : MonoBehaviour
 {
     [SerializeField] PlayerController playerController;
-    [SerializeField] float groundDistance = 1.99f;
+    [SerializeField] float groundDistance = 0.4f;
     [SerializeField] LayerMask groundLayer;
+
+    [SerializeField] public float crouchTransitionSpeed = 16f;
 
     public bool IsGrounded { get; private set; }
 
@@ -17,7 +19,14 @@ public class GroundChecker : MonoBehaviour
 
     void Update()
     {
-        RaycastHit hit;
-        IsGrounded = Physics.SphereCast(transform.position, groundDistance, Vector3.down, out hit, groundDistance, groundLayer);
+        IsGrounded = Physics.CheckSphere(transform.position, groundDistance, groundLayer);
+    }
+
+
+    public void HandleGroundCheckerPosition(Vector3 newTargetPosition) {
+        if (transform.localPosition.y != newTargetPosition.y) {
+            var currentCameraTargetPositionY = Mathf.Lerp(transform.localPosition.y, newTargetPosition.y, crouchTransitionSpeed);
+            transform.localPosition = new Vector3(transform.localPosition.x, currentCameraTargetPositionY, transform.localPosition.z);
+        } 
     }
 }
