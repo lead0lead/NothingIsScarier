@@ -21,16 +21,19 @@ public class PlayerController : MonoBehaviour
     [Header("Settings")]
     [SerializeField] public float walkSpeed = 800f;
     [SerializeField] public float crouchSpeed = 400f;
+    [SerializeField] private float acceleration = 10f;
+    [SerializeField] private float airAcceleration = 10f;
     [SerializeField] private float smoothTime = 0.2f;
     [SerializeField] public float standingHeight;
     [SerializeField] public float crouchHeight = 2f;
     [SerializeField] public float crouchTransitionSpeed = 16f;
+    [SerializeField] private float groundDrag = 5f;
+    [SerializeField] private float airDrag = 0f;
 
     [Header("Jump Settings")]
-    [SerializeField] float jumpForce = 10f;
-    [SerializeField] float jumpCooldown = 0f;
-    [SerializeField] float jumpDuration = 0.5f;
-    [SerializeField] float gravityMultiplier = 3f;
+    [SerializeField] float jumpForce = 15f;
+    [SerializeField] float jumpCooldown = 0.25f;
+    private bool jumpPressed;
 
     [Header("Slope Handling")]
     [SerializeField] float maxSlopeAngle = 45f;
@@ -44,14 +47,12 @@ public class PlayerController : MonoBehaviour
     public float standingGroundCheckerPositionY { get; private set; }
     public float crouchGroundCheckerPositionY { get; private set; }
 
-    List<Timer> timers;
-    CountdownTimer jumpTimer;
-    CountdownTimer jumpCooldownTimer;
     private float currentSpeed;
     private float velocity;
     private float jumpVelocity;
 
     private Vector3 movement;
+    private Vector3 moveDirection;
 
     StateMachine stateMachine;
 
@@ -60,7 +61,7 @@ public class PlayerController : MonoBehaviour
     float slopeangle;
 
     private void Awake() {
-
+        
         standingHeight = GetColliderHeight();
         standingCameraPositionY = cameraTransform.localPosition.y;
         crouchCameraPositionY = standingCameraPositionY - ((standingHeight - crouchHeight) / 2);
@@ -71,14 +72,6 @@ public class PlayerController : MonoBehaviour
         cameraHandler.crouchTransitionSpeed = crouchTransitionSpeed;
         groundChecker.crouchTransitionSpeed = crouchTransitionSpeed;
  
-        // Setup Timers
-        jumpTimer = new CountdownTimer(jumpDuration);
-        jumpCooldownTimer = new CountdownTimer(jumpCooldown);
-        timers = new List<Timer>(capacity:2) { jumpTimer, jumpCooldownTimer };
-
-        jumpTimer.OnTimerStart += () => jumpVelocity = jumpForce;
-        jumpTimer.OnTimerStop += () => jumpCooldownTimer.Start();
-
         // State machine
         stateMachine = new StateMachine();
 
@@ -88,12 +81,12 @@ public class PlayerController : MonoBehaviour
         var crouchState = new CrouchState(this, animator);
 
         // Define transitions
-        At(locomotionState, jumpState, new FuncPredicate(() => jumpTimer.IsRunning));
-        At(jumpState, locomotionState, new FuncPredicate(() => groundChecker.IsGrounded && !jumpTimer.IsRunning));
+        At(locomotionState, jumpState, new FuncPredicate(() => jumpPressed));
+        At(jumpState, locomotionState, new FuncPredicate(() => groundChecker.IsGrounded && !jumpPressed));
 
-        At(locomotionState, crouchState, new FuncPredicate(() => IsCrouching && groundChecker.IsGrounded && !jumpTimer.IsRunning));
+        At(locomotionState, crouchState, new FuncPredicate(() => IsCrouching && groundChecker.IsGrounded && !jumpPressed));
         At(crouchState, locomotionState, new FuncPredicate(() => !IsCrouching));
-        At(crouchState, jumpState, new FuncPredicate(() => jumpTimer.IsRunning && IsCrouching));
+        At(crouchState, jumpState, new FuncPredicate(() => jumpPressed && IsCrouching));
 
         // Set initial state
         stateMachine.SetState(locomotionState);
@@ -117,14 +110,8 @@ public class PlayerController : MonoBehaviour
         gameInput.Crouch -= OnCrouch;
     }
 
-    void OnJump(bool performed) {
-        if (performed && !jumpTimer.IsRunning && !jumpCooldownTimer.IsRunning && groundChecker.IsGrounded) {
-            jumpTimer.Start();
-            // Debug.Log("jump timer started");
-        } else if (!performed && jumpTimer.IsRunning) { 
-            jumpTimer.Stop();
-            // Debug.Log("jump timer stopped");
-        }
+    void OnJump(bool pressed) {
+        jumpPressed = pressed;
     }
 
     void OnCrouch(bool IsPressed) {
@@ -136,7 +123,6 @@ public class PlayerController : MonoBehaviour
     }
 
     private void Update() {
-        HandleTimers();
         movement = new Vector3(gameInput.Direction.x, 0f, gameInput.Direction.y);
 
         stateMachine.Update();
@@ -146,69 +132,52 @@ public class PlayerController : MonoBehaviour
         //HandleJump();
         // HandleMovement();
        stateMachine.FixedUpdate();
+
     }
 
     public void HandleJump() {
-        // if not jumping and grounded, keep jumping velocity at 0
-        if (!jumpTimer.IsRunning && groundChecker.IsGrounded) {
-            jumpVelocity = ZeroF;
-            jumpTimer.Stop();
-            return;
+        if (groundChecker.IsGrounded) {
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x, ZeroF, rb.linearVelocity.z);
+            rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
         }
-
-        // if jumping or falling calculate velocity
-        if (!jumpTimer.IsRunning) {
-            // Gravity takes over
-            jumpVelocity += Physics.gravity.y * gravityMultiplier * Time.deltaTime;
-        }
-
-        // Apply velocity
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpVelocity, rb.linearVelocity.z);
+        
     }
 
-    private void HandleTimers() {
-        foreach (var timer in timers) {
-            timer.Tick(Time.deltaTime);
-        }
-    }
 
     public void HandleMovement() {
-        Vector3 movementDirectionAdjusted = Quaternion.AngleAxis(cameraTransform.eulerAngles.y, Vector2.up) * movement;
 
-        if (movementDirectionAdjusted.magnitude > ZeroF)
-        {
-            // HandleRotation(movementDirectionAdjusted);
-            HandleHorizontalMovement(movementDirectionAdjusted, OnSlope());
+        float appliedAcceleration = groundChecker.IsGrounded ? acceleration : airAcceleration;
+        moveDirection = Quaternion.AngleAxis(cameraTransform.eulerAngles.y, Vector2.up) * movement;
 
-            SmoothSpeed(movementDirectionAdjusted.magnitude);
+        if (OnSlope()) {
+            rb.AddForce(GetSlopeMovementDirection(moveDirection) * moveSpeed * appliedAcceleration, ForceMode.Force);
+            if (rb.linearVelocity.y > ZeroF) {
+                rb.AddForce(Vector3.down * 80f, ForceMode.Force);
+            }
+        } else {
+            rb.AddForce(moveDirection.normalized * moveSpeed * appliedAcceleration, ForceMode.Force);
         }
-        else {
-            SmoothSpeed(ZeroF);
-            rb.linearVelocity = new Vector3(ZeroF, rb.linearVelocity.y, ZeroF);
-        }
 
+        rb.linearDamping = groundChecker.IsGrounded ? groundDrag : airDrag;
+        rb.useGravity = !OnSlope();
+        SpeedControl();
     }
 
-    private void HandleHorizontalMovement(Vector3 movementDirectionAdjusted, bool OnSlope)
-    {
-        if (OnSlope) {
-            movementDirectionAdjusted = GetSlopeMovementDirection(movementDirectionAdjusted);
-            Vector3 velocity = movementDirectionAdjusted * moveSpeed * Time.fixedDeltaTime;
-            rb.linearVelocity = velocity;
-            } else {
-            Vector3 velocity = movementDirectionAdjusted * moveSpeed * Time.fixedDeltaTime;
-            rb.linearVelocity = new Vector3(velocity.x, rb.linearVelocity.y, velocity.z);
+
+
+    void SpeedControl() {
+
+        if (OnSlope()) {
+            if (rb.linearVelocity.magnitude > moveSpeed)
+            rb.linearVelocity = rb.linearVelocity.normalized * moveSpeed;
+        } else {
+            Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, ZeroF, rb.linearVelocity.z);
+
+            if (horizontalVelocity.magnitude > moveSpeed) {
+                Vector3 cappedVelocity = horizontalVelocity.normalized * moveSpeed;
+                rb.linearVelocity = new Vector3(cappedVelocity.x, rb.linearVelocity.y, cappedVelocity.z);
+            }
         }
-    }
-
-    /* private void HandleRotation(Vector3 movementDirectionAdjusted)
-    {
-        var targetRotation = Quaternion.LookRotation(movementDirectionAdjusted);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-    } */
-
-    void SmoothSpeed(float value) {
-        currentSpeed = Mathf.SmoothDamp(currentSpeed, value, ref velocity, smoothTime);
     }
 
     public float GetColliderHeight() {

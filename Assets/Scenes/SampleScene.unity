@@ -1177,18 +1177,19 @@ MonoBehaviour:
   cameraTransform: {fileID: 330585546}
   cameraHandler: {fileID: 330585548}
   groundChecker: {fileID: 827881770}
-  walkSpeed: 800
-  crouchSpeed: 400
+  walkSpeed: 15
+  crouchSpeed: 7.5
+  acceleration: 10
   smoothTime: 0.2
   standingHeight: 0
   crouchHeight: 3
   crouchTransitionSpeed: 16
-  jumpForce: 5
+  groundDrag: 5
+  airDrag: 0
+  jumpForce: 10
   jumpCooldown: 0
-  jumpDuration: 0.25
-  gravityMultiplier: 3
   maxSlopeAngle: 45
-  slopeCheckDistance: 300
+  slopeCheckDistance: 0.3
   moveSpeed: 0
 --- !u!54 &1229048837
 Rigidbody:

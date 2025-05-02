@@ -1,3 +1,4 @@
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class JumpState : BaseState {
@@ -14,4 +15,5 @@ public class JumpState : BaseState {
        player.HandleJump();
        player.HandleMovement();
     }
+
 }
