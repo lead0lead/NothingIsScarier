@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -9,6 +10,9 @@ using UnityEngine.UIElements;
 
 public class PlayerController : MonoBehaviour
 {
+
+
+
     [Header("References")]
     [SerializeField] public Rigidbody rb;
     [SerializeField] private CapsuleCollider capsuleCollider;
@@ -40,6 +44,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] RaycastHit slopeHit;
     [SerializeField] float slopeCheckDistance = 0.3f;
 
+    [Header("Interaction Handling")]
+    [SerializeField] float interactDistance = 5f;
+
     public float moveSpeed;
     public bool IsCrouching { get; private set; }
     public float standingCameraPositionY { get; private set; }
@@ -61,7 +68,7 @@ public class PlayerController : MonoBehaviour
     float slopeangle;
 
     private void Awake() {
-        
+ 
         standingHeight = GetColliderHeight();
         standingCameraPositionY = cameraTransform.localPosition.y;
         crouchCameraPositionY = standingCameraPositionY - ((standingHeight - crouchHeight) / 2);
@@ -103,11 +110,13 @@ public class PlayerController : MonoBehaviour
     private void OnEnable() {
         gameInput.Jump += OnJump;
         gameInput.Crouch += OnCrouch;
+        gameInput.Interact += OnInteract;
     }
 
     private void OnDisable() {
         gameInput.Jump -= OnJump;
         gameInput.Crouch -= OnCrouch;
+        gameInput.Interact -= OnInteract;
     }
 
     void OnJump(bool pressed) {
@@ -122,6 +131,10 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    void OnInteract() {
+        HandleInteractions();
+    }
+    
     private void Update() {
         movement = new Vector3(gameInput.Direction.x, 0f, gameInput.Direction.y);
 
@@ -143,7 +156,6 @@ public class PlayerController : MonoBehaviour
         
     }
 
-
     public void HandleMovement() {
 
         float appliedAcceleration = groundChecker.IsGrounded ? acceleration : airAcceleration;
@@ -162,8 +174,6 @@ public class PlayerController : MonoBehaviour
         rb.useGravity = !OnSlope();
         SpeedControl();
     }
-
-
 
     void SpeedControl() {
 
@@ -201,6 +211,16 @@ public class PlayerController : MonoBehaviour
 
     private Vector3 GetSlopeMovementDirection(Vector3 moveDir) {
         return Vector3.ProjectOnPlane(moveDir, slopeHit.normal).normalized;
+    }
+
+    private void HandleInteractions() {
+        RaycastHit hitInfo;
+        if (Physics.Raycast(cameraTransform.position, cameraTransform.forward, out hitInfo, interactDistance)) {
+            if (hitInfo.transform.TryGetComponent(out IInteractable interactable)) {
+                interactable.Interact(transform);
+            } else {
+            }
+        }
     }
 }
 
